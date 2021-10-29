@@ -5,6 +5,7 @@ package be.mygod.vpnhotspot.manage
 import android.annotation.TargetApi
 import android.bluetooth.BluetoothManager
 import android.content.*
+import android.net.wifi.SoftApConfiguration
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -25,11 +26,13 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import be.mygod.vpnhotspot.*
 import be.mygod.vpnhotspot.databinding.FragmentTetheringBinding
+import be.mygod.vpnhotspot.net.MacAddressCompat
 import be.mygod.vpnhotspot.net.TetherType
 import be.mygod.vpnhotspot.net.TetheringManager
 import be.mygod.vpnhotspot.net.TetheringManager.localOnlyTetheredIfaces
 import be.mygod.vpnhotspot.net.TetheringManager.tetheredIfaces
 import be.mygod.vpnhotspot.net.monitor.TetherTimeoutMonitor
+import be.mygod.vpnhotspot.net.wifi.SoftApConfigurationCompat
 import be.mygod.vpnhotspot.net.wifi.WifiApDialogFragment
 import be.mygod.vpnhotspot.net.wifi.WifiApManager
 import be.mygod.vpnhotspot.root.RootManager
@@ -105,24 +108,24 @@ class TetheringFragment : Fragment(), ServiceConnection, Toolbar.OnMenuItemClick
 
             val list = ArrayList<Manager>()
             if (Services.p2p != null) list.add(repeaterManager)
-            if (Build.VERSION.SDK_INT >= 26) list.add(localOnlyHotspotManager)
-            val monitoredIfaces = binder?.monitoredIfaces ?: emptyList()
-            updateMonitorList(activeIfaces - monitoredIfaces)
-            list.addAll((activeIfaces + monitoredIfaces).toSortedSet()
-                    .map { InterfaceManager(this@TetheringFragment, it) })
-            list.add(ManageBar)
-            if (Build.VERSION.SDK_INT >= 24) {
-                list.addAll(tetherManagers)
-                tetherManagers.forEach { it.updateErrorMessage(erroredIfaces, lastErrors) }
-            }
-            if (Build.VERSION.SDK_INT >= 30) {
-                list.addAll(tetherManagers30)
-                tetherManagers30.forEach { it.updateErrorMessage(erroredIfaces, lastErrors) }
-            }
-            if (Build.VERSION.SDK_INT < 26) {
-                list.add(wifiManagerLegacy)
-                wifiManagerLegacy.onTetheringStarted()
-            }
+//            if (Build.VERSION.SDK_INT >= 26) list.add(localOnlyHotspotManager)
+//            val monitoredIfaces = binder?.monitoredIfaces ?: emptyList()
+//            updateMonitorList(activeIfaces - monitoredIfaces)
+//            list.addAll((activeIfaces + monitoredIfaces).toSortedSet()
+//                    .map { InterfaceManager(this@TetheringFragment, it) })
+//            list.add(ManageBar)
+//            if (Build.VERSION.SDK_INT >= 24) {
+//                list.addAll(tetherManagers)
+//                tetherManagers.forEach { it.updateErrorMessage(erroredIfaces, lastErrors) }
+//            }
+//            if (Build.VERSION.SDK_INT >= 30) {
+//                list.addAll(tetherManagers30)
+//                tetherManagers30.forEach { it.updateErrorMessage(erroredIfaces, lastErrors) }
+//            }
+//            if (Build.VERSION.SDK_INT < 26) {
+//                list.add(wifiManagerLegacy)
+//                wifiManagerLegacy.onTetheringStarted()
+//            }
             submitList(list) { deferred.complete(list) }
         }
 
@@ -177,62 +180,63 @@ class TetheringFragment : Fragment(), ServiceConnection, Toolbar.OnMenuItemClick
     }
 
     private var apConfigurationRunning = false
-    override fun onMenuItemClick(item: MenuItem?): Boolean {
-        return when (item?.itemId) {
-            R.id.configuration -> item.subMenu.run {
-                findItem(R.id.configuration_repeater).isNotGone = Services.p2p != null
-                findItem(R.id.configuration_temp_hotspot).isNotGone =
-                        adapter.localOnlyHotspotManager.binder?.configuration != null
-                true
-            }
-            R.id.configuration_repeater -> {
-                adapter.repeaterManager.configure()
-                true
-            }
-            R.id.configuration_temp_hotspot -> {
-                WifiApDialogFragment().apply {
-                    arg(WifiApDialogFragment.Arg(adapter.localOnlyHotspotManager.binder?.configuration ?: return false,
-                            readOnly = true))
-                    // no need for callback
-                }.showAllowingStateLoss(parentFragmentManager)
-                true
-            }
-            R.id.configuration_ap -> if (apConfigurationRunning) false else {
-                apConfigurationRunning = true
-                viewLifecycleOwner.lifecycleScope.launchWhenCreated {
-                    try {
-                        WifiApManager.configuration
-                    } catch (e: InvocationTargetException) {
-                        if (e.targetException !is SecurityException) Timber.w(e)
-                        try {
-                            RootManager.use { it.execute(WifiApCommands.GetConfiguration()) }
-                        } catch (_: CancellationException) {
-                            null
-                        } catch (eRoot: Exception) {
-                            eRoot.addSuppressed(e)
-                            if (Build.VERSION.SDK_INT !in 26..29 || eRoot.getRootCause() !is SecurityException) {
-                                Timber.w(eRoot)
-                            }
-                            SmartSnackbar.make(eRoot).show()
-                            null
-                        }
-                    } catch (e: IllegalArgumentException) {
-                        Timber.w(e)
-                        SmartSnackbar.make(e).show()
-                        null
-                    }?.let { configuration ->
-                        WifiApDialogFragment().apply {
-                            arg(WifiApDialogFragment.Arg(configuration))
-                            key()
-                        }.showAllowingStateLoss(parentFragmentManager)
-                    }
-                    apConfigurationRunning = false
-                }
-                true
-            }
-            else -> false
-        }
-    }
+
+//    override fun onMenuItemClick(item: MenuItem?): Boolean {
+//        return when (item?.itemId) {
+//            R.id.configuration -> item.subMenu.run {
+//                findItem(R.id.configuration_repeater).isNotGone = Services.p2p != null
+//                findItem(R.id.configuration_temp_hotspot).isNotGone =
+//                        adapter.localOnlyHotspotManager.binder?.configuration != null
+//                true
+//            }
+//            R.id.configuration_repeater -> {
+//                adapter.repeaterManager.configure()
+//                true
+//            }
+//            R.id.configuration_temp_hotspot -> {
+//                WifiApDialogFragment().apply {
+//                    arg(WifiApDialogFragment.Arg(adapter.localOnlyHotspotManager.binder?.configuration ?: return false,
+//                            readOnly = true))
+//                    // no need for callback
+//                }.showAllowingStateLoss(parentFragmentManager)
+//                true
+//            }
+//            R.id.configuration_ap -> if (apConfigurationRunning) false else {
+//                apConfigurationRunning = true
+//                viewLifecycleOwner.lifecycleScope.launchWhenCreated {
+//                    try {
+//                        WifiApManager.configuration
+//                    } catch (e: InvocationTargetException) {
+//                        if (e.targetException !is SecurityException) Timber.w(e)
+//                        try {
+//                            RootManager.use { it.execute(WifiApCommands.GetConfiguration()) }
+//                        } catch (_: CancellationException) {
+//                            null
+//                        } catch (eRoot: Exception) {
+//                            eRoot.addSuppressed(e)
+//                            if (Build.VERSION.SDK_INT !in 26..29 || eRoot.getRootCause() !is SecurityException) {
+//                                Timber.w(eRoot)
+//                            }
+//                            SmartSnackbar.make(eRoot).show()
+//                            null
+//                        }
+//                    } catch (e: IllegalArgumentException) {
+//                        Timber.w(e)
+//                        SmartSnackbar.make(e).show()
+//                        null
+//                    }?.let { configuration ->
+//                        WifiApDialogFragment().apply {
+//                            arg(WifiApDialogFragment.Arg(configuration))
+//                            key()
+//                        }.showAllowingStateLoss(parentFragmentManager)
+//                    }
+//                    apConfigurationRunning = false
+//                }
+//                true
+//            }
+//            else -> false
+//        }
+//    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         AlertDialogFragment.setResultListener<WifiApDialogFragment, WifiApDialogFragment.Arg>(this) { which, ret ->
@@ -268,11 +272,70 @@ class TetheringFragment : Fragment(), ServiceConnection, Toolbar.OnMenuItemClick
         binding.interfaces.adapter = adapter
         adapter.update()
         ServiceForegroundConnector(this, this, TetheringService::class)
+
+        // TODO: Hard-coded networkName and password
+        val networkName = "smartwifi"
+        val passphrase = "roboslog"
+
+        base = SoftApConfigurationCompat(
+            ssid = networkName,
+            passphrase = passphrase,
+            securityType = SoftApConfiguration.SECURITY_TYPE_WPA2_PSK,  // is not actually used
+            isAutoShutdownEnabled = RepeaterService.isAutoShutdownEnabled,
+            shutdownTimeoutMillis = RepeaterService.shutdownTimeoutMillis).apply {
+            bssid = RepeaterService.deviceAddress
+            setChannel(RepeaterService.operatingChannel, RepeaterService.operatingBand)
+            setMacRandomizationEnabled(WifiApManager.p2pMacRandomizationSupported)
+        }
+
         (activity as MainActivity).binding.toolbar.apply {
-            inflateMenu(R.menu.toolbar_tethering)
+            inflateMenu(R.menu.toolbar_configuration)
             setOnMenuItemClickListener(this@TetheringFragment)
         }
         return binding.root
+    }
+
+    private lateinit var base: SoftApConfigurationCompat
+
+    override fun onMenuItemClick(item: MenuItem?): Boolean {
+        return when (item?.itemId) {
+            R.id.share_qr -> {
+                QRCodeDialog().withArg(generateConfig(false).toQrCode()).showAllowingStateLoss(parentFragmentManager)
+                true
+            }
+            else -> false
+        }
+    }
+
+    private fun generateConfig(full: Boolean = true) = base.copy(
+        ssid = base.ssid,
+        passphrase = if (base.passphrase.isNullOrEmpty()) null else base.passphrase.toString()).apply {
+        if (!arg.p2pMode) {
+            securityType = dialogView.security.selectedItemPosition
+            isHiddenSsid = dialogView.hiddenSsid.isChecked
+        }
+        if (full) @TargetApi(28) {
+            isAutoShutdownEnabled = dialogView.autoShutdown.isChecked
+            shutdownTimeoutMillis = dialogView.timeout.text.let { text ->
+                if (text.isNullOrEmpty()) 0 else text.toString().toLong()
+            }
+            if (Build.VERSION.SDK_INT >= 23 || arg.p2pMode) channels = generateChannels()
+            bssid = if (dialogView.bssid.length() != 0) {
+                MacAddressCompat.fromString(dialogView.bssid.text.toString())
+            } else null
+            maxNumberOfClients = dialogView.maxClient.text.let { text ->
+                if (text.isNullOrEmpty()) 0 else text.toString().toInt()
+            }
+            isClientControlByUserEnabled = dialogView.clientUserControl.isChecked
+            allowedClientList = (dialogView.allowedList.text ?: "").split(WifiApDialogFragment.nonMacChars)
+                .filter { it.isNotEmpty() }.map { MacAddressCompat.fromString(it).toPlatform() }
+            blockedClientList = (dialogView.blockedList.text ?: "").split(WifiApDialogFragment.nonMacChars)
+                .filter { it.isNotEmpty() }.map { MacAddressCompat.fromString(it).toPlatform() }
+            setMacRandomizationEnabled(dialogView.macRandomization.isChecked)
+            isBridgedModeOpportunisticShutdownEnabled = dialogView.bridgedModeOpportunisticShutdown.isChecked
+            isIeee80211axEnabled = dialogView.ieee80211ax.isChecked
+            isUserConfiguration = dialogView.userConfig.isChecked
+        }
     }
 
     override fun onDestroyView() {

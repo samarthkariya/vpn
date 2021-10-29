@@ -78,7 +78,8 @@ class MainActivity : AppCompatActivity(), NavigationBarView.OnItemSelectedListen
     private var lastUpdate: AppUpdate? = null
     private fun onAppUpdateAvailable(update: AppUpdate?) {
         lastUpdate = update
-        updateItem.isVisible = update != null
+//        updateItem.isVisible = update != null
+        updateItem.isVisible = false
         if (update == null) return
         updateItem.isEnabled = update.downloaded != false
         updateItem.setIcon(when (update.downloaded) {

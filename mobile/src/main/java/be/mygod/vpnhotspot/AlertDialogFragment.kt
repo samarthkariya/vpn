@@ -20,7 +20,7 @@ abstract class AlertDialogFragment<Arg : Parcelable, Ret : Parcelable> :
         AppCompatDialogFragment(), DialogInterface.OnClickListener {
     companion object {
         private const val KEY_RESULT = "result"
-        private const val KEY_ARG = "arg"
+        const val KEY_ARG = "arg"
         private const val KEY_RET = "ret"
         private const val KEY_WHICH = "which"
 

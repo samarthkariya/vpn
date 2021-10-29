@@ -16,11 +16,14 @@
           app:showAsAction="always">
         <menu>
             <item android:id="@+id/configuration_repeater"
-                  android:title="@string/title_repeater"/>
+                  android:title="@string/title_repeater"
+                android:visible="false"/>
             <item android:id="@+id/configuration_temp_hotspot"
-                  android:title="@string/tethering_temp_hotspot"/>
+                  android:title="@string/tethering_temp_hotspot"
+                android:visible="false"/>
             <item android:id="@+id/configuration_ap"
-                  android:title="@string/tethering_manage_wifi"/>
+                  android:title="@string/tethering_manage_wifi"
+                android:visible="false"/>
         </menu>
     </item>
 </menu>
