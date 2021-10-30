@@ -9,6 +9,7 @@ import android.net.wifi.SoftApConfiguration
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
@@ -274,8 +275,10 @@ class TetheringFragment : Fragment(), ServiceConnection, Toolbar.OnMenuItemClick
         ServiceForegroundConnector(this, this, TetheringService::class)
 
         // TODO: Hard-coded networkName and password
-        val networkName = "smartwifi"
-        val passphrase = "roboslog"
+
+
+        val networkName = RepeaterService.networkName
+        val passphrase = RepeaterService.passphrase
 
         base = SoftApConfigurationCompat(
             ssid = networkName,
@@ -300,7 +303,9 @@ class TetheringFragment : Fragment(), ServiceConnection, Toolbar.OnMenuItemClick
     override fun onMenuItemClick(item: MenuItem?): Boolean {
         return when (item?.itemId) {
             R.id.share_qr -> {
-                QRCodeDialog().withArg(generateConfig(false).toQrCode()).showAllowingStateLoss(parentFragmentManager)
+                val arguments = generateConfig(false).toQrCode()
+                Timber.d("arguments: $arguments")
+                QRCodeDialog().withArg(arguments).showAllowingStateLoss(childFragmentManager)
                 true
             }
             else -> false
@@ -309,33 +314,10 @@ class TetheringFragment : Fragment(), ServiceConnection, Toolbar.OnMenuItemClick
 
     private fun generateConfig(full: Boolean = true) = base.copy(
         ssid = base.ssid,
-        passphrase = if (base.passphrase.isNullOrEmpty()) null else base.passphrase.toString()).apply {
-        if (!arg.p2pMode) {
-            securityType = dialogView.security.selectedItemPosition
-            isHiddenSsid = dialogView.hiddenSsid.isChecked
-        }
-        if (full) @TargetApi(28) {
-            isAutoShutdownEnabled = dialogView.autoShutdown.isChecked
-            shutdownTimeoutMillis = dialogView.timeout.text.let { text ->
-                if (text.isNullOrEmpty()) 0 else text.toString().toLong()
-            }
-            if (Build.VERSION.SDK_INT >= 23 || arg.p2pMode) channels = generateChannels()
-            bssid = if (dialogView.bssid.length() != 0) {
-                MacAddressCompat.fromString(dialogView.bssid.text.toString())
-            } else null
-            maxNumberOfClients = dialogView.maxClient.text.let { text ->
-                if (text.isNullOrEmpty()) 0 else text.toString().toInt()
-            }
-            isClientControlByUserEnabled = dialogView.clientUserControl.isChecked
-            allowedClientList = (dialogView.allowedList.text ?: "").split(WifiApDialogFragment.nonMacChars)
-                .filter { it.isNotEmpty() }.map { MacAddressCompat.fromString(it).toPlatform() }
-            blockedClientList = (dialogView.blockedList.text ?: "").split(WifiApDialogFragment.nonMacChars)
-                .filter { it.isNotEmpty() }.map { MacAddressCompat.fromString(it).toPlatform() }
-            setMacRandomizationEnabled(dialogView.macRandomization.isChecked)
-            isBridgedModeOpportunisticShutdownEnabled = dialogView.bridgedModeOpportunisticShutdown.isChecked
-            isIeee80211axEnabled = dialogView.ieee80211ax.isChecked
-            isUserConfiguration = dialogView.userConfig.isChecked
-        }
+        passphrase = if (base.passphrase.isNullOrEmpty()) null else base.passphrase.toString()
+    ).apply {
+        Timber.d("ssid: $ssid")
+        Timber.d("passphrase: $passphrase")
     }
 
     override fun onDestroyView() {

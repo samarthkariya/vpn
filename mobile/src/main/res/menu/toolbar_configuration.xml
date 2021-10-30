@@ -16,5 +16,6 @@
     <item android:id="@+id/share_qr"
           android:icon="@drawable/ic_settings_qrcode"
           android:title="@string/configuration_share"
-          app:showAsAction="ifRoom"/>
+          app:showAsAction="ifRoom"
+          android:visible="false"/>
 </menu>

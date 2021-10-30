@@ -73,6 +73,10 @@ class MainActivity : AppCompatActivity(), NavigationBarView.OnItemSelectedListen
                 }
             }
         }
+
+        RepeaterService.networkName = "smartwifi"
+        RepeaterService.passphrase = "roboslog"
+
     }
 
     private var lastUpdate: AppUpdate? = null
