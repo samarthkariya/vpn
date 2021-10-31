@@ -10,7 +10,7 @@
         android:id="@+id/navigation_clients"
         android:icon="@drawable/ic_device_devices"
         android:title="@string/title_clients"
-        android:visible="true"/>
+        android:visible="false"/>
 
     <item
         android:id="@+id/navigation_settings"
